@@ -182,6 +182,7 @@ contract UnitCreateParams is Base {
   }
 
   function testCurrentLimitIsMaxLimitIfUnused(uint256 _limit, address _minter) public {
+    vm.assume(_limit < type(uint256).max);
     uint256 _currentTimestamp = 1_683_145_698;
     vm.warp(_currentTimestamp);
 

@@ -1,0 +1,20 @@
+| solidity/contracts/XERC20.sol:XERC20 contract |                 |        |        |        |         |
+|-----------------------------------------------|-----------------|--------|--------|--------|---------|
+| Deployment Cost                               | Deployment Size |        |        |        |         |
+| 1572482                                       | 8955            |        |        |        |         |
+| Function Name                                 | min             | avg    | median | max    | # calls |
+| FACTORY                                       | 306             | 306    | 306    | 306    | 1       |
+| balanceOf                                     | 651             | 651    | 651    | 651    | 4       |
+| burn                                          | 2504            | 4509   | 3968   | 5893   | 17      |
+| burningCurrentLimitOf                         | 1035            | 1420   | 1502   | 1502   | 16      |
+| burningMaxLimitOf                             | 632             | 1132   | 632    | 2632   | 4       |
+| mint                                          | 26786           | 39183  | 40549  | 50686  | 24      |
+| mintingCurrentLimitOf                         | 1029            | 1423   | 1496   | 1496   | 18      |
+| mintingMaxLimitOf                             | 634             | 919    | 634    | 2634   | 7       |
+| name                                          | 3243            | 3243   | 3243   | 3243   | 1       |
+| owner                                         | 421             | 507    | 421    | 2421   | 23      |
+| setLimits                                     | 6174            | 165189 | 181314 | 183314 | 45      |
+| setLockbox                                    | 23594           | 23594  | 23594  | 23594  | 22      |
+| symbol                                        | 3241            | 3241   | 3241   | 3241   | 1       |
+| totalSupply                                   | 338             | 338    | 338    | 338    | 1       |
+| transferOwnership                             | 2431            | 2431   | 2431   | 2431   | 22      |

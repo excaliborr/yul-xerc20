@@ -5,12 +5,17 @@ import {IXERC20} from 'interfaces/IXERC20.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {ERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import 'forge-std/console.sol';
 
 contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
   /**
    * @notice The duration it takes for the limits to fully replenish
    */
   uint256 private constant _DURATION = 1 days;
+
+  uint256 private constant _SET_LOCKBOX_EVENT_SIG = 0xfa2e15ea41196e438f0593ecdd6036acd83bdfcd39d627b77c17eab43f376a39;
+
+  uint256 private constant _SET_LIMITS_EVENT_SIG = 0x7c80aa9fdbfaf9615e4afc7f5f722e265daca5ccc655360fa5ccacf9c267936d;
 
   /**
    * @notice The address of the factory which deployed this contract
@@ -52,8 +57,56 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function mint(address _user, uint256 _amount) public {
-    _mintWithCaller(msg.sender, _user, _amount);
-  }
+    bytes32 location = keccak256(abi.encode(msg.sender, 9));
+
+    assembly {
+      if iszero(eq(caller(), sload(lockbox.slot))) {
+      let _currentLimit := sload(add(location, 3))
+      let _maxLimit := sload(add(location, 2))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 1))
+      let m := mload(0x40)
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
+      }
+
+      if lt(_currentLimit, _amount) {
+        revert(0,0)
+      }
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
+      }
+
+      if gt(_amount, _currentLimit) {
+        // Revert cause of underflow
+        revert(0, 0)
+      }
+
+      sstore(add(location, 3), sub(_currentLimit, _amount))
+
+      sstore(location, timestamp())
+    }
+    }
+        _mint(_user, _amount);
+    }
 
   /**
    * @notice Burns tokens for a user
@@ -63,7 +116,55 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function burn(address _user, uint256 _amount) public {
-    _burnWithCaller(msg.sender, _user, _amount);
+    bytes32 location = keccak256(abi.encode(msg.sender, 9));
+
+    assembly {
+      if iszero(eq(caller(), sload(lockbox.slot))) {
+      let _currentLimit := sload(add(location, 7))
+      let _maxLimit := sload(add(location, 6))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 5))
+      let m := mload(0x40)
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
+      }
+
+      if lt(_currentLimit, _amount) {
+        revert(0,0)
+      }
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
+      }
+
+      if gt(_amount, _currentLimit) {
+        // Revert cause of underflow
+        revert(0, 0)
+      }
+
+      sstore(add(location, 7), sub(_currentLimit, _amount))
+
+      sstore(location, timestamp())
+    }
+    }
+        _burn(_user, _amount);
   }
 
   /**
@@ -73,10 +174,13 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function setLockbox(address _lockbox) public {
-    if (msg.sender != FACTORY) revert IXERC20_NotFactory();
-    lockbox = _lockbox;
+    address fact = FACTORY;
+    assembly {
+      if iszero(eq(caller(), fact)) { revert(0, 0) }
+      sstore(lockbox.slot, _lockbox)
 
-    emit LockboxSet(_lockbox);
+      log2(0, 0, _SET_LOCKBOX_EVENT_SIG, _lockbox) // Log the event with one topic
+    }
   }
 
   /**
@@ -87,9 +191,84 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    * @param _bridge The address of the bridge we are setting the limits too
    */
   function setLimits(address _bridge, uint256 _mintingLimit, uint256 _burningLimit) external onlyOwner {
-    _changeMinterLimit(_mintingLimit, _bridge);
-    _changeBurnerLimit(_burningLimit, _bridge);
-    emit BridgeLimitsSet(_mintingLimit, _burningLimit, _bridge);
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
+
+    assembly {
+      let _currentMintingLimit := sload(add(location, 3))
+      let _oldMintingLimit := sload(add(location, 2))
+      let _timestamp := sload(location)
+      let _mintingRatePerSecond := sload(add(location, 1))
+
+      let m := mload(0x40)
+
+      if eq(_currentMintingLimit, _oldMintingLimit) { _currentMintingLimit := _oldMintingLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentMintingLimit := _oldMintingLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentMintingLimit, _oldMintingLimit))) {
+        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _mintingRatePerSecond), _currentMintingLimit))
+
+        if gt(mload(add(m, 0x20)), _oldMintingLimit) { _currentMintingLimit := _oldMintingLimit }
+
+        if iszero(gt(mload(add(m, 0x20)), _oldMintingLimit)) { _currentMintingLimit := mload(add(m, 0x20)) }
+      }
+
+      if iszero(eq(_oldMintingLimit, _mintingLimit)) {
+        if gt(_oldMintingLimit, _mintingLimit) {
+          mstore(m, sub(_oldMintingLimit, _mintingLimit))
+
+          if iszero(gt(_currentMintingLimit, mload(m))) { sstore(add(location, 3), 0) }
+
+          if gt(_currentMintingLimit, mload(m)) { sstore(add(location, 3), sub(_currentMintingLimit, mload(m))) }
+        }
+
+        if iszero(gt(_oldMintingLimit, _mintingLimit)) {
+          mstore(m, sub(_mintingLimit, _oldMintingLimit))
+
+          sstore(add(location, 3), add(_currentMintingLimit, mload(m)))
+        }
+      }
+      sstore(add(location, 1), div(_mintingLimit, _DURATION))
+      sstore(location, timestamp())
+      sstore(add(location, 2), _mintingLimit)
+
+      let _currentLimit := sload(add(location, 7))
+      let _oldLimit := sload(add(location, 6))
+      let _ratePerSecond := sload(add(location, 5))
+
+      if eq(_currentLimit, _oldLimit) { _currentLimit := _oldLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _oldLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _oldLimit))) {
+        mstore(sub(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(sub(m, 0x20)), _oldLimit) { _currentLimit := _oldLimit }
+
+        if iszero(gt(mload(sub(m, 0x20)), _oldLimit)) { _currentLimit := mload(sub(m, 0x20)) }
+      }
+
+      if iszero(eq(_oldLimit, _burningLimit)) {
+        if gt(_oldLimit, _burningLimit) {
+          mstore(sub(m, 0x40), sub(_oldLimit, _burningLimit))
+
+          if iszero(gt(_currentLimit, mload(sub(m, 0x40)))) { sstore(add(location, 7), 0) }
+
+          if gt(_currentLimit, mload(sub(m, 0x40))) { sstore(add(location, 7), sub(_currentLimit, mload(sub(m, 0x40)))) }
+        }
+
+        if iszero(gt(_oldLimit, _burningLimit)) {
+          mstore(sub(m, 0x40), sub(_burningLimit, _oldLimit))
+
+          sstore(add(location, 7), add(_currentLimit, mload(sub(m, 0x40))))
+        }
+      }
+      
+      sstore(add(location, 5), div(_burningLimit, _DURATION))
+      sstore(add(location, 6), _burningLimit)
+
+      log4(0, 0, _SET_LIMITS_EVENT_SIG, _mintingLimit, _burningLimit, _bridge) // Log the event with one topic
+    }
   }
 
   /**
@@ -100,7 +279,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function mintingMaxLimitOf(address _bridge) public view returns (uint256 _limit) {
-    _limit = bridges[_bridge].minterParams.maxLimit;
+    // Get location (storage is slot 9)
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
+    assembly {
+      _limit := sload(add(location, 2))
+    }
   }
 
   /**
@@ -111,7 +294,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function burningMaxLimitOf(address _bridge) public view returns (uint256 _limit) {
-    _limit = bridges[_bridge].burnerParams.maxLimit;
+    // Get location (storage is slot 9)
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
+    assembly {
+      _limit := sload(add(location, 6))
+    }
   }
 
   /**
@@ -122,12 +309,27 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function mintingCurrentLimitOf(address _bridge) public view returns (uint256 _limit) {
-    _limit = _getCurrentLimit(
-      bridges[_bridge].minterParams.currentLimit,
-      bridges[_bridge].minterParams.maxLimit,
-      bridges[_bridge].minterParams.timestamp,
-      bridges[_bridge].minterParams.ratePerSecond
-    );
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
+
+    assembly {
+      let _currentLimit := sload(add(location, 3))
+      let _maxLimit := sload(add(location, 2))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 1))
+
+      if eq(_currentLimit, _maxLimit) { _limit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
+        let m := mload(0x40)
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+      }
+    }
   }
 
   /**
@@ -138,12 +340,27 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function burningCurrentLimitOf(address _bridge) public view returns (uint256 _limit) {
-    _limit = _getCurrentLimit(
-      bridges[_bridge].burnerParams.currentLimit,
-      bridges[_bridge].burnerParams.maxLimit,
-      bridges[_bridge].burnerParams.timestamp,
-      bridges[_bridge].burnerParams.ratePerSecond
-    );
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
+
+    assembly {
+      let _currentLimit := sload(add(location, 7))
+      let _maxLimit := sload(add(location, 6))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 5))
+
+      if eq(_currentLimit, _maxLimit) { _limit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
+        let m := mload(0x40)
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+      }
+    }
   }
 
   /**
@@ -153,9 +370,37 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _useMinterLimits(uint256 _change, address _bridge) internal {
-    uint256 _currentLimit = mintingCurrentLimitOf(_bridge);
-    bridges[_bridge].minterParams.timestamp = block.timestamp;
-    bridges[_bridge].minterParams.currentLimit = _currentLimit - _change;
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
+
+    assembly {
+      let _currentLimit := sload(add(location, 3))
+      let _maxLimit := sload(add(location, 2))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 1))
+      let _limit
+
+      if eq(_limit, _maxLimit) { _limit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
+
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        let m := mload(0x40)
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+      }
+
+      if gt(_change, _limit) {
+        // Revert cause of underflow
+        revert(0, 0)
+      }
+
+      sstore(add(location, 3), sub(_limit, _change))
+
+      sstore(location, timestamp())
+    }
   }
 
   /**
@@ -165,9 +410,37 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _useBurnerLimits(uint256 _change, address _bridge) internal {
-    uint256 _currentLimit = burningCurrentLimitOf(_bridge);
-    bridges[_bridge].burnerParams.timestamp = block.timestamp;
-    bridges[_bridge].burnerParams.currentLimit = _currentLimit - _change;
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
+
+    assembly {
+      let _currentLimit := sload(add(location, 7))
+      let _maxLimit := sload(add(location, 6))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 5))
+      let _limit
+
+      if eq(_limit, _maxLimit) { _limit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
+
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        let m := mload(0x40)
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+      }
+
+      if gt(_change, _limit) {
+        // Revert cause of underflow
+        revert(0, 0)
+      }
+
+      sstore(add(location, 7), sub(_limit, _change))
+
+      sstore(location, timestamp())
+    }
   }
 
   /**
@@ -178,14 +451,47 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _changeMinterLimit(uint256 _limit, address _bridge) internal {
-    uint256 _oldLimit = bridges[_bridge].minterParams.maxLimit;
-    uint256 _currentLimit = mintingCurrentLimitOf(_bridge);
-    bridges[_bridge].minterParams.maxLimit = _limit;
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
 
-    bridges[_bridge].minterParams.currentLimit = _calculateNewCurrentLimit(_limit, _oldLimit, _currentLimit);
+    assembly {
+      let _currentLimit := sload(add(location, 3))
+      let _oldLimit := sload(add(location, 2))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 1))
 
-    bridges[_bridge].minterParams.ratePerSecond = _limit / _DURATION;
-    bridges[_bridge].minterParams.timestamp = block.timestamp;
+      let m := mload(0x40)
+
+      if eq(_currentLimit, _oldLimit) { _currentLimit := _oldLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _oldLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _oldLimit))) {
+        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(add(m, 0x20)), _oldLimit) { _currentLimit := _oldLimit }
+
+        if iszero(gt(mload(add(m, 0x20)), _oldLimit)) { _currentLimit := mload(add(m, 0x20)) }
+      }
+
+      if iszero(eq(_oldLimit, _limit)) {
+        if gt(_oldLimit, _limit) {
+          mstore(m, sub(_oldLimit, _limit))
+
+          if iszero(gt(_currentLimit, mload(m))) { sstore(add(location, 3), 0) }
+
+          if gt(_currentLimit, mload(m)) { sstore(add(location, 3), sub(_currentLimit, mload(m))) }
+        }
+
+        if iszero(gt(_oldLimit, _limit)) {
+          mstore(m, sub(_limit, _oldLimit))
+
+          sstore(add(location, 3), add(_currentLimit, mload(m)))
+        }
+      }
+      sstore(add(location, 1), div(_limit, _DURATION))
+      sstore(location, timestamp())
+      sstore(add(location, 2), _limit)
+    }
   }
 
   /**
@@ -196,14 +502,47 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _changeBurnerLimit(uint256 _limit, address _bridge) internal {
-    uint256 _oldLimit = bridges[_bridge].burnerParams.maxLimit;
-    uint256 _currentLimit = burningCurrentLimitOf(_bridge);
-    bridges[_bridge].burnerParams.maxLimit = _limit;
+    bytes32 location = keccak256(abi.encode(_bridge, 9));
 
-    bridges[_bridge].burnerParams.currentLimit = _calculateNewCurrentLimit(_limit, _oldLimit, _currentLimit);
+    assembly {
+      let _currentLimit := sload(add(location, 7))
+      let _oldLimit := sload(add(location, 6))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 5))
 
-    bridges[_bridge].burnerParams.ratePerSecond = _limit / _DURATION;
-    bridges[_bridge].burnerParams.timestamp = block.timestamp;
+      let m := mload(0x40)
+
+      if eq(_currentLimit, _oldLimit) { _currentLimit := _oldLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _oldLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _oldLimit))) {
+        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(add(m, 0x20)), _oldLimit) { _currentLimit := _oldLimit }
+
+        if iszero(gt(mload(add(m, 0x20)), _oldLimit)) { _currentLimit := mload(add(m, 0x20)) }
+      }
+
+      if iszero(eq(_oldLimit, _limit)) {
+        if gt(_oldLimit, _limit) {
+          mstore(m, sub(_oldLimit, _limit))
+
+          if iszero(gt(_currentLimit, mload(m))) { sstore(add(location, 7), 0) }
+
+          if gt(_currentLimit, mload(m)) { sstore(add(location, 7), sub(_currentLimit, mload(m))) }
+        }
+
+        if iszero(gt(_oldLimit, _limit)) {
+          mstore(m, sub(_limit, _oldLimit))
+
+          sstore(add(location, 7), add(_currentLimit, mload(m)))
+        }
+      }
+      sstore(add(location, 5), div(_limit, _DURATION))
+      sstore(location, timestamp())
+      sstore(add(location, 6), _limit)
+    }
   }
 
   /**
@@ -219,14 +558,24 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
     uint256 _oldLimit,
     uint256 _currentLimit
   ) internal pure returns (uint256 _newCurrentLimit) {
-    uint256 _difference;
+    assembly {
+      if eq(_oldLimit, _limit) { _newCurrentLimit := _currentLimit }
 
-    if (_oldLimit > _limit) {
-      _difference = _oldLimit - _limit;
-      _newCurrentLimit = _currentLimit > _difference ? _currentLimit - _difference : 0;
-    } else {
-      _difference = _limit - _oldLimit;
-      _newCurrentLimit = _currentLimit + _difference;
+      if iszero(eq(_oldLimit, _limit)) {
+        let memPntr := mload(0x40)
+
+        if gt(_oldLimit, _limit) {
+          mstore(memPntr, sub(_oldLimit, _limit))
+          if iszero(gt(_currentLimit, mload(memPntr))) { _newCurrentLimit := 0 }
+
+          if gt(_currentLimit, mload(memPntr)) { _newCurrentLimit := sub(_currentLimit, mload(memPntr)) }
+        }
+
+        if iszero(gt(_oldLimit, _limit)) {
+          mstore(memPntr, sub(_limit, _oldLimit))
+          _newCurrentLimit := add(_currentLimit, mload(memPntr))
+        }
+      }
     }
   }
 
@@ -245,15 +594,19 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
     uint256 _timestamp,
     uint256 _ratePerSecond
   ) internal view returns (uint256 _limit) {
-    _limit = _currentLimit;
-    if (_limit == _maxLimit) {
-      return _limit;
-    } else if (_timestamp + _DURATION <= block.timestamp) {
-      _limit = _maxLimit;
-    } else if (_timestamp + _DURATION > block.timestamp) {
-      uint256 _timePassed = block.timestamp - _timestamp;
-      uint256 _calculatedLimit = _limit + (_timePassed * _ratePerSecond);
-      _limit = _calculatedLimit > _maxLimit ? _maxLimit : _calculatedLimit;
+    assembly {
+      if eq(_limit, _maxLimit) { _limit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
+
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        let m := mload(0x40)
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+      }
     }
   }
 
@@ -266,12 +619,55 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _burnWithCaller(address _caller, address _user, uint256 _amount) internal {
-    if (_caller != lockbox) {
-      uint256 _currentLimit = burningCurrentLimitOf(_caller);
-      if (_currentLimit < _amount) revert IXERC20_NotHighEnoughLimits();
-      _useBurnerLimits(_amount, _caller);
+  bytes32 location = keccak256(abi.encode(_caller, 9));
+
+    assembly {
+      if iszero(eq(caller(), sload(lockbox.slot))) {
+      let _currentLimit := sload(add(location, 7))
+      let _maxLimit := sload(add(location, 6))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 5))
+      let m := mload(0x40)
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
+      }
+
+      if lt(_currentLimit, _amount) {
+        revert(0,0)
+      }
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
+      }
+
+      if gt(_amount, _currentLimit) {
+        // Revert cause of underflow
+        revert(0, 0)
+      }
+
+      sstore(add(location, 7), sub(_currentLimit, _amount))
+
+      sstore(location, timestamp())
     }
-    _burn(_user, _amount);
+    }
+        _burn(_user, _amount);
   }
 
   /**
@@ -283,11 +679,55 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _mintWithCaller(address _caller, address _user, uint256 _amount) internal {
-    if (_caller != lockbox) {
-      uint256 _currentLimit = mintingCurrentLimitOf(_caller);
-      if (_currentLimit < _amount) revert IXERC20_NotHighEnoughLimits();
-      _useMinterLimits(_amount, _caller);
+    bytes32 location = keccak256(abi.encode(_caller, 9));
+
+    assembly {
+      if iszero(eq(caller(), sload(lockbox.slot))) {
+      let _currentLimit := sload(add(location, 3))
+      let _maxLimit := sload(add(location, 2))
+      let _timestamp := sload(location)
+      let _ratePerSecond := sload(add(location, 1))
+      let m := mload(0x40)
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
+        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
+      }
+
+      if lt(_currentLimit, _amount) {
+        revert(0,0)
+      }
+
+      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+
+      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
+
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+
+        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
+
+        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
+      }
+
+      if gt(_amount, _currentLimit) {
+        // Revert cause of underflow
+        revert(0, 0)
+      }
+
+      sstore(add(location, 3), sub(_currentLimit, _amount))
+
+      sstore(location, timestamp())
     }
-    _mint(_user, _amount);
-  }
+    }
+        _mint(_user, _amount);
+    }
+  
 }

@@ -33,6 +33,7 @@
     "script:DeployXERC20:broadcast": "forge script solidity/scripts/MultichainCreateXERC20.sol:MultichainCreateXERC20 --legacy --broadcast --verify --slow",
     "test": "forge test -vvv",
     "test:e2e": "forge test --match-contract E2E -vvv",
+    "test:gas": "forge test --gas-report --match-contract E2E -vvv",
     "test:unit": "forge test --match-contract Unit -vvv",
     "test:unit:deep": "FOUNDRY_FUZZ_RUNS=5000 yarn test:unit"
   },
