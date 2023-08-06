@@ -235,8 +235,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
         if iszero(gt(_oldMintingLimit, _mintingLimit)) {
           mstore(m, sub(_mintingLimit, _oldMintingLimit))
-
-          sstore(add(location, 3), add(_currentMintingLimit, mload(m)))
+          mstore(m, add(_currentMintingLimit, mload(m)))
+          if gt(_currentMintingLimit, mload(m)) {
+            // Overflow
+            revert(0,0)
+           }
+          sstore(add(location, 3), mload(m))
         }
       }
       sstore(add(location, 1), div(_mintingLimit, _DURATION))
@@ -270,8 +274,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
         if iszero(gt(_oldLimit, _burningLimit)) {
           mstore(sub(m, 0x40), sub(_burningLimit, _oldLimit))
-
-          sstore(add(location, 7), add(_currentLimit, mload(sub(m, 0x40))))
+          mstore(sub(m, 0x40), add(_currentLimit, mload(sub(m, 0x40))))
+          if gt(_currentLimit, mload(sub(m, 0x40))) {
+            // Overflow
+            revert(0,0)
+           }
+          sstore(add(location, 7), mload(sub(m, 0x40)))
         }
       }
       
@@ -508,8 +516,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
         if iszero(gt(_oldLimit, _limit)) {
           mstore(m, sub(_limit, _oldLimit))
-
-          sstore(add(location, 3), add(_currentLimit, mload(m)))
+          mstore(add(m, 0x20), add(_currentLimit, mload(m)))
+          if gt(_currentLimit, mload(add(m, 0x20))) {
+            // Overflow
+            revert(0,0)
+           }
+          sstore(add(location, 3), mload(add(m, 0x20)))
         }
       }
       sstore(add(location, 1), div(_limit, _DURATION))
@@ -562,8 +574,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
         if iszero(gt(_oldLimit, _limit)) {
           mstore(m, sub(_limit, _oldLimit))
-
-          sstore(add(location, 7), add(_currentLimit, mload(m)))
+          mstore(add(m, 0x20), add(_currentLimit, mload(m)))
+          if gt(_currentLimit, mload(add(m, 0x20))) {
+            // Overflow
+            revert(0,0)
+           }
+          sstore(add(location, 7), mload(add(m, 0x20)))
         }
       }
       sstore(add(location, 5), div(_limit, _DURATION))
@@ -600,7 +616,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
         if iszero(gt(_oldLimit, _limit)) {
           mstore(memPntr, sub(_limit, _oldLimit))
-          _newCurrentLimit := add(_currentLimit, mload(memPntr))
+          mstore(add(memPntr, 0x20), add(_currentLimit, mload(memPntr)))
+          if gt(_currentLimit, mload(add(memPntr, 0x20))) {
+            // Overflow
+            revert(0,0)
+           }
+          _newCurrentLimit := mload(add(memPntr, 0x20))
         }
       }
     }
