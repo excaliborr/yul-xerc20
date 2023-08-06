@@ -1,20 +1,20 @@
 | solidity/contracts/XERC20.sol:XERC20 contract |                 |        |        |        |         |
 |-----------------------------------------------|-----------------|--------|--------|--------|---------|
 | Deployment Cost                               | Deployment Size |        |        |        |         |
-| 1693815                                       | 9561            |        |        |        |         |
+| 1586303                                       | 9024            |        |        |        |         |
 | Function Name                                 | min             | avg    | median | max    | # calls |
 | FACTORY                                       | 294             | 294    | 294    | 294    | 1       |
-| balanceOf                                     | 627             | 627    | 627    | 627    | 2       |
-| burn                                          | 3370            | 3757   | 3370   | 4289   | 16      |
-| burningCurrentLimitOf                         | 1139            | 1216   | 1234   | 1234   | 16      |
-| burningMaxLimitOf                             | 707             | 1207   | 707    | 2707   | 4       |
-| mint                                          | 26072           | 37315  | 39978  | 49972  | 22      |
-| mintingCurrentLimitOf                         | 1140            | 1218   | 1234   | 1234   | 18      |
-| mintingMaxLimitOf                             | 709             | 994    | 709    | 2709   | 7       |
+| balanceOf                                     | 562             | 562    | 562    | 562    | 2       |
+| burn                                          | 3310            | 3691   | 3310   | 4214   | 16      |
+| burningCurrentLimitOf                         | 1048            | 1125   | 1143   | 1143   | 16      |
+| burningMaxLimitOf                             | 560             | 1060   | 560    | 2560   | 4       |
+| mint                                          | 25918           | 37169  | 39855  | 49818  | 22      |
+| mintingCurrentLimitOf                         | 1049            | 1127   | 1143   | 1143   | 18      |
+| mintingMaxLimitOf                             | 607             | 892    | 607    | 2607   | 7       |
 | name                                          | 3243            | 3243   | 3243   | 3243   | 1       |
-| owner                                         | 397             | 497    | 397    | 2397   | 20      |
-| setLimits                                     | 4766            | 142934 | 158199 | 160199 | 42      |
-| setLockbox                                    | 23607           | 23607  | 23607  | 23607  | 19      |
-| symbol                                        | 3241            | 3241   | 3241   | 3241   | 1       |
+| owner                                         | 352             | 452    | 352    | 2352   | 20      |
+| setLimits                                     | 4585            | 142753 | 158018 | 160018 | 42      |
+| setLockbox                                    | 23629           | 23629  | 23629  | 23629  | 19      |
+| symbol                                        | 3263            | 3263   | 3263   | 3263   | 1       |
 | totalSupply                                   | 338             | 338    | 338    | 338    | 1       |
 | transferOwnership                             | 2383            | 2383   | 2383   | 2383   | 19      |
