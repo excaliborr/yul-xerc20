@@ -30,7 +30,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
   /**
    * @notice Maps bridge address to bridge configurations
    */
-  mapping(address => Bridge) public bridges;
+  uint256 constant private _BRIDGES_SLOT = 0xcbc4e5fb;
 
   /**
    * @notice Constructs the initial config of the XERC20
@@ -57,10 +57,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function mint(address _user, uint256 _amount) public {
-    bytes32 location = keccak256(abi.encode(msg.sender, 9));
-
     assembly {
       if iszero(eq(caller(), sload(lockbox.slot))) {
+      mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, caller())
+      let location := keccak256(0x0c, 0x20)
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
@@ -80,7 +81,8 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       }
 
       if lt(_currentLimit, _amount) {
-        revert(0,0)
+        mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
+        revert(0x1c, 0x04)
       }
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
@@ -116,10 +118,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function burn(address _user, uint256 _amount) public {
-    bytes32 location = keccak256(abi.encode(msg.sender, 9));
 
     assembly {
       if iszero(eq(caller(), sload(lockbox.slot))) {
+              mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, caller())
+      let location := keccak256(0x0c, 0x20)
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
@@ -139,7 +143,8 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       }
 
       if lt(_currentLimit, _amount) {
-        revert(0,0)
+        mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
+        revert(0x1c, 0x04)
       }
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
@@ -176,7 +181,10 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
   function setLockbox(address _lockbox) public {
     address fact = FACTORY;
     assembly {
-      if iszero(eq(caller(), fact)) { revert(0, 0) }
+      if iszero(eq(caller(), fact)) { 
+        mstore(0x0c, 0x2029e525) // IXERC20_NotFactory revert
+        revert(0x1c, 0x04)
+         }
       sstore(lockbox.slot, _lockbox)
 
       log2(0, 0, _SET_LOCKBOX_EVENT_SIG, _lockbox) // Log the event with one topic
@@ -191,9 +199,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    * @param _bridge The address of the bridge we are setting the limits too
    */
   function setLimits(address _bridge, uint256 _mintingLimit, uint256 _burningLimit) external onlyOwner {
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
 
     assembly {
+            mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
+
       let _currentMintingLimit := sload(add(location, 3))
       let _oldMintingLimit := sload(add(location, 2))
       let _timestamp := sload(location)
@@ -279,9 +290,10 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function mintingMaxLimitOf(address _bridge) public view returns (uint256 _limit) {
-    // Get location (storage is slot 9)
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
     assembly {
+            mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
       _limit := sload(add(location, 2))
     }
   }
@@ -294,9 +306,10 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function burningMaxLimitOf(address _bridge) public view returns (uint256 _limit) {
-    // Get location (storage is slot 9)
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
     assembly {
+            mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
       _limit := sload(add(location, 6))
     }
   }
@@ -309,9 +322,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function mintingCurrentLimitOf(address _bridge) public view returns (uint256 _limit) {
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
-
     assembly {
+            mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
+
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
@@ -340,9 +355,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function burningCurrentLimitOf(address _bridge) public view returns (uint256 _limit) {
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
-
     assembly {
+            mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
+
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
@@ -370,9 +387,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _useMinterLimits(uint256 _change, address _bridge) internal {
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
-
     assembly {
+
+                  mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
+
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
@@ -410,9 +430,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _useBurnerLimits(uint256 _change, address _bridge) internal {
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
-
     assembly {
+                  mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
+
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
@@ -451,9 +473,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _changeMinterLimit(uint256 _limit, address _bridge) internal {
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
-
     assembly {
+
+                  mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
       let _currentLimit := sload(add(location, 3))
       let _oldLimit := sload(add(location, 2))
       let _timestamp := sload(location)
@@ -502,9 +526,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _changeBurnerLimit(uint256 _limit, address _bridge) internal {
-    bytes32 location = keccak256(abi.encode(_bridge, 9));
 
     assembly {
+                  mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _bridge)
+      let location := keccak256(0x0c, 0x20)
+
       let _currentLimit := sload(add(location, 7))
       let _oldLimit := sload(add(location, 6))
       let _timestamp := sload(location)
@@ -619,10 +646,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _burnWithCaller(address _caller, address _user, uint256 _amount) internal {
-  bytes32 location = keccak256(abi.encode(_caller, 9));
 
     assembly {
       if iszero(eq(caller(), sload(lockbox.slot))) {
+                    mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _caller)
+      let location := keccak256(0x0c, 0x20)
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
@@ -642,7 +671,8 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       }
 
       if lt(_currentLimit, _amount) {
-        revert(0,0)
+                mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
+        revert(0x1c, 0x04)
       }
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
@@ -679,10 +709,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
    */
 
   function _mintWithCaller(address _caller, address _user, uint256 _amount) internal {
-    bytes32 location = keccak256(abi.encode(_caller, 9));
-
     assembly {
       if iszero(eq(caller(), sload(lockbox.slot))) {
+                            mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x00, _caller)
+      let location := keccak256(0x0c, 0x20)
+
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
@@ -702,7 +734,8 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       }
 
       if lt(_currentLimit, _amount) {
-        revert(0,0)
+                mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
+        revert(0x1c, 0x04)
       }
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
