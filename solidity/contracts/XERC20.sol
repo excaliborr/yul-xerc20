@@ -66,35 +66,22 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
       let _ratePerSecond := div(_maxLimit, _DURATION)
-      let m := mload(0x40)
-
-      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
-
-      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
-
-      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
-
-        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
-
-        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
-      }
-
-      if lt(_currentLimit, _amount) {
-        mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
-        revert(0x1c, 0x04)
-      }
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
 
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
 
       if gt(add(_timestamp, _DURATION), timestamp()) {
-        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+       let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _currentLimit := _maxLimit }
 
-        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _currentLimit := calculatedLimit }
+      }
+
+      if lt(_currentLimit, _amount) {
+        mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
+        revert(0x1c, 0x04)
       }
 
       if gt(_amount, _currentLimit) {
@@ -121,42 +108,29 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
     assembly {
       if iszero(eq(caller(), sload(lockbox.slot))) {
-              mstore(0x0c, _BRIDGES_SLOT)
+                    mstore(0x0c, _BRIDGES_SLOT)
       mstore(0x00, caller())
       let location := keccak256(0x0c, 0x20)
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
       let _ratePerSecond := div(_maxLimit, _DURATION)
-      let m := mload(0x40)
 
-      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+            if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
 
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
 
-      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+      if gt(add(_timestamp, _DURATION), timestamp()) {
+        let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _currentLimit := _maxLimit }
 
-        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _currentLimit := calculatedLimit }
       }
 
       if lt(_currentLimit, _amount) {
         mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
         revert(0x1c, 0x04)
-      }
-
-      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
-
-      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
-
-      if gt(add(_timestamp, _DURATION), timestamp()) {
-        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
-
-        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
-
-        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
       }
 
       if gt(_amount, _currentLimit) {
@@ -217,20 +191,20 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentMintingLimit := _oldMintingLimit }
 
       if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentMintingLimit, _oldMintingLimit))) {
-        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _mintingRatePerSecond), _currentMintingLimit))
+        let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _mintingRatePerSecond), _currentMintingLimit)
 
-        if gt(mload(add(m, 0x20)), _oldMintingLimit) { _currentMintingLimit := _oldMintingLimit }
+        if gt(calculatedLimit, _oldMintingLimit) { _currentMintingLimit := _oldMintingLimit }
 
-        if iszero(gt(mload(add(m, 0x20)), _oldMintingLimit)) { _currentMintingLimit := mload(add(m, 0x20)) }
+        if iszero(gt(calculatedLimit, _oldMintingLimit)) { _currentMintingLimit := calculatedLimit }
       }
 
       if iszero(eq(_oldMintingLimit, _mintingLimit)) {
         if gt(_oldMintingLimit, _mintingLimit) {
-          mstore(m, sub(_oldMintingLimit, _mintingLimit))
+         let difference := sub(_oldMintingLimit, _mintingLimit)
 
-          if iszero(gt(_currentMintingLimit, mload(m))) { sstore(add(location, 3), 0) }
+          if iszero(gt(_currentMintingLimit, difference)) { sstore(add(location, 3), 0) }
 
-          if gt(_currentMintingLimit, mload(m)) { sstore(add(location, 3), sub(_currentMintingLimit, mload(m))) }
+          if gt(_currentMintingLimit, difference) { sstore(add(location, 3), sub(_currentMintingLimit, difference)) }
         }
 
         if iszero(gt(_oldMintingLimit, _mintingLimit)) {
@@ -257,11 +231,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       if iszero(gt(add(_burningTimestamp, _DURATION), timestamp())) { _currentLimit := _oldLimit }
 
       if iszero(eq(gt(add(_burningTimestamp, _DURATION), timestamp()), eq(_currentLimit, _oldLimit))) {
-        mstore(sub(m, 0x20), add(mul(sub(timestamp(), _burningTimestamp), _ratePerSecond), _currentLimit))
+       let calculatedLimit := add(mul(sub(timestamp(), _burningTimestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(sub(m, 0x20)), _oldLimit) { _currentLimit := _oldLimit }
+        if gt(calculatedLimit, _oldLimit) { _currentLimit := _oldLimit }
 
-        if iszero(gt(mload(sub(m, 0x20)), _oldLimit)) { _currentLimit := mload(sub(m, 0x20)) }
+        if iszero(gt(calculatedLimit, _oldLimit)) { _currentLimit := calculatedLimit }
       }
 
       if iszero(eq(_oldLimit, _burningLimit)) {
@@ -284,7 +258,6 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
         }
       }
       
-      // sstore(add(location, 5), div(_burningLimit, _DURATION))
       sstore(add(location, 6), _burningLimit)
       sstore(add(location, 4), timestamp())
 
@@ -347,12 +320,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
 
       if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
-        let m := mload(0x40)
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+        let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _limit := _maxLimit }
 
-        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _limit := calculatedLimit }
       }
     }
   }
@@ -380,12 +352,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
 
       if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
-        let m := mload(0x40)
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+        let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _limit := _maxLimit }
 
-        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _limit := calculatedLimit }
       }
     }
   }
@@ -414,12 +385,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
 
       if gt(add(_timestamp, _DURATION), timestamp()) {
-        let m := mload(0x40)
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _limit := _maxLimit }
 
-        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _limit := calculatedLimit }
       }
 
       if gt(_change, _limit) {
@@ -456,12 +426,11 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
 
       if gt(add(_timestamp, _DURATION), timestamp()) {
-        let m := mload(0x40)
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+        let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _limit := _maxLimit }
 
-        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _limit := calculatedLimit }
       }
 
       if gt(_change, _limit) {
@@ -650,12 +619,12 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _limit := _maxLimit }
 
       if gt(add(_timestamp, _DURATION), timestamp()) {
-        let m := mload(0x40)
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+        
+       let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(m), _maxLimit) { _limit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _limit := _maxLimit }
 
-        if iszero(gt(mload(m), _maxLimit)) { _limit := mload(m) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _limit := calculatedLimit }
       }
     }
   }
@@ -671,7 +640,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
   function _burnWithCaller(address _caller, address _user, uint256 _amount) internal {
 
     assembly {
-      if iszero(eq(caller(), sload(lockbox.slot))) {
+      if iszero(eq(_caller, sload(lockbox.slot))) {
                     mstore(0x0c, _BRIDGES_SLOT)
       mstore(0x00, _caller)
       let location := keccak256(0x0c, 0x20)
@@ -679,35 +648,22 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
       let _ratePerSecond := div(_maxLimit, _DURATION)
-      let m := mload(0x40)
 
-      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
-
-      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
-
-      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
-
-        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
-
-        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
-      }
-
-      if lt(_currentLimit, _amount) {
-                mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
-        revert(0x1c, 0x04)
-      }
-
-      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
+            if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
 
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
 
       if gt(add(_timestamp, _DURATION), timestamp()) {
-        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+        let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _currentLimit := _maxLimit }
 
-        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _currentLimit := calculatedLimit }
+      }
+
+      if lt(_currentLimit, _amount) {
+        mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
+        revert(0x1c, 0x04)
       }
 
       if gt(_amount, _currentLimit) {
@@ -733,7 +689,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
   function _mintWithCaller(address _caller, address _user, uint256 _amount) internal {
     assembly {
-      if iszero(eq(caller(), sload(lockbox.slot))) {
+      if iszero(eq(_caller, sload(lockbox.slot))) {
                             mstore(0x0c, _BRIDGES_SLOT)
       mstore(0x00, _caller)
       let location := keccak256(0x0c, 0x20)
@@ -742,35 +698,22 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
       let _ratePerSecond := div(_maxLimit, _DURATION)
-      let m := mload(0x40)
-
-      if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
-
-      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
-
-      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _maxLimit))) {
-        mstore(m, add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
-
-        if gt(mload(m), _maxLimit) { _currentLimit := _maxLimit }
-
-        if iszero(gt(mload(m), _maxLimit)) { _currentLimit := mload(m) }
-      }
-
-      if lt(_currentLimit, _amount) {
-                mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
-        revert(0x1c, 0x04)
-      }
-
+      
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
 
       if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _maxLimit }
 
       if gt(add(_timestamp, _DURATION), timestamp()) {
-        mstore(add(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+       let calculatedLimit := add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit)
 
-        if gt(mload(add(m, 0x20)), _maxLimit) { _currentLimit := _maxLimit }
+        if gt(calculatedLimit, _maxLimit) { _currentLimit := _maxLimit }
 
-        if iszero(gt(mload(add(m, 0x20)), _maxLimit)) { _currentLimit := mload(add(m, 0x20)) }
+        if iszero(gt(calculatedLimit, _maxLimit)) { _currentLimit := calculatedLimit }
+      }
+
+      if lt(_currentLimit, _amount) {
+        mstore(0x00, 0x0b6842aa) // IXERC20_NotHighEnoughLimits revert
+        revert(0x1c, 0x04)
       }
 
       if gt(_amount, _currentLimit) {
