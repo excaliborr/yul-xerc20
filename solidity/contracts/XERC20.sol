@@ -15,7 +15,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
   uint256 private constant _SET_LOCKBOX_EVENT_SIG = 0xfa2e15ea41196e438f0593ecdd6036acd83bdfcd39d627b77c17eab43f376a39;
 
-  uint256 private constant _SET_LIMITS_EVENT_SIG = 0x7c80aa9fdbfaf9615e4afc7f5f722e265daca5ccc655360fa5ccacf9c267936d;
+  uint256 private constant _SET_LIMITS_EVENT_SIG =  0x93f3bbfe8cfb354ec059175107653f49f6eb479a8622a7d83866ea015435c944;
 
   /**
    * @notice The address of the factory which deployed this contract
@@ -160,8 +160,9 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
         revert(0x1c, 0x04)
          }
       sstore(lockbox.slot, _lockbox)
-
-      log2(0, 0, _SET_LOCKBOX_EVENT_SIG, _lockbox) // Log the event with one topic
+      
+      mstore(0x00, _lockbox)
+      log1(0x00, 0x20, _SET_LOCKBOX_EVENT_SIG) // Log the event with one topic
     }
   }
 
@@ -261,7 +262,9 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       sstore(add(location, 6), _burningLimit)
       sstore(add(location, 4), timestamp())
 
-      log4(0, 0, _SET_LIMITS_EVENT_SIG, _mintingLimit, _burningLimit, _bridge) // Log the event with one topic
+      mstore(0x00, _mintingLimit)
+      mstore(0x20, _burningLimit)
+      log2(0x00, 0x40, _SET_LIMITS_EVENT_SIG, _bridge) // Log the event with one topic
     }
   }
 
