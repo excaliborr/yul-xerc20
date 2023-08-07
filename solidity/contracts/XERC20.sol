@@ -250,13 +250,14 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 7))
       let _oldLimit := sload(add(location, 6))
       let _ratePerSecond := sload(add(location, 5))
+      let _burningTimestamp := sload(add(location, 4))
 
       if eq(_currentLimit, _oldLimit) { _currentLimit := _oldLimit }
 
-      if iszero(gt(add(_timestamp, _DURATION), timestamp())) { _currentLimit := _oldLimit }
+      if iszero(gt(add(_burningTimestamp, _DURATION), timestamp())) { _currentLimit := _oldLimit }
 
-      if iszero(eq(gt(add(_timestamp, _DURATION), timestamp()), eq(_currentLimit, _oldLimit))) {
-        mstore(sub(m, 0x20), add(mul(sub(timestamp(), _timestamp), _ratePerSecond), _currentLimit))
+      if iszero(eq(gt(add(_burningTimestamp, _DURATION), timestamp()), eq(_currentLimit, _oldLimit))) {
+        mstore(sub(m, 0x20), add(mul(sub(timestamp(), _burningTimestamp), _ratePerSecond), _currentLimit))
 
         if gt(mload(sub(m, 0x20)), _oldLimit) { _currentLimit := _oldLimit }
 
@@ -285,6 +286,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       
       sstore(add(location, 5), div(_burningLimit, _DURATION))
       sstore(add(location, 6), _burningLimit)
+      sstore(add(location, 4), timestamp())
 
       log4(0, 0, _SET_LIMITS_EVENT_SIG, _mintingLimit, _burningLimit, _bridge) // Log the event with one topic
     }
@@ -445,7 +447,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
-      let _timestamp := sload(location)
+      let _timestamp := sload(add(location, 4))
       let _ratePerSecond := sload(add(location, 5))
       let _limit
 
@@ -469,7 +471,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
 
       sstore(add(location, 7), sub(_limit, _change))
 
-      sstore(location, timestamp())
+      sstore(add(location, 4), timestamp())
     }
   }
 
