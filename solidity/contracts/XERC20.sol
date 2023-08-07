@@ -65,7 +65,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 1))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
       let m := mload(0x40)
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
@@ -127,7 +127,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 5))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
       let m := mload(0x40)
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
@@ -201,14 +201,14 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
   function setLimits(address _bridge, uint256 _mintingLimit, uint256 _burningLimit) external onlyOwner {
 
     assembly {
-            mstore(0x0c, _BRIDGES_SLOT)
+      mstore(0x0c, _BRIDGES_SLOT)
       mstore(0x00, _bridge)
       let location := keccak256(0x0c, 0x20)
 
       let _currentMintingLimit := sload(add(location, 3))
       let _oldMintingLimit := sload(add(location, 2))
       let _timestamp := sload(location)
-      let _mintingRatePerSecond := sload(add(location, 1))
+      let _mintingRatePerSecond := div(_oldMintingLimit, _DURATION)
 
       let m := mload(0x40)
 
@@ -243,13 +243,13 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
           sstore(add(location, 3), mload(m))
         }
       }
-      sstore(add(location, 1), div(_mintingLimit, _DURATION))
+      // sstore(add(location, 1), div(_mintingLimit, _DURATION))
       sstore(location, timestamp())
       sstore(add(location, 2), _mintingLimit)
 
       let _currentLimit := sload(add(location, 7))
       let _oldLimit := sload(add(location, 6))
-      let _ratePerSecond := sload(add(location, 5))
+      let _ratePerSecond := div(_oldLimit, _DURATION)
       let _burningTimestamp := sload(add(location, 4))
 
       if eq(_currentLimit, _oldLimit) { _currentLimit := _oldLimit }
@@ -284,7 +284,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
         }
       }
       
-      sstore(add(location, 5), div(_burningLimit, _DURATION))
+      // sstore(add(location, 5), div(_burningLimit, _DURATION))
       sstore(add(location, 6), _burningLimit)
       sstore(add(location, 4), timestamp())
 
@@ -340,7 +340,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 1))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
 
       if eq(_currentLimit, _maxLimit) { _limit := _maxLimit }
 
@@ -373,7 +373,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 5))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
 
       if eq(_currentLimit, _maxLimit) { _limit := _maxLimit }
 
@@ -406,7 +406,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 1))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
       let _limit
 
       if eq(_limit, _maxLimit) { _limit := _maxLimit }
@@ -448,7 +448,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(add(location, 4))
-      let _ratePerSecond := sload(add(location, 5))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
       let _limit
 
       if eq(_limit, _maxLimit) { _limit := _maxLimit }
@@ -491,7 +491,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 3))
       let _oldLimit := sload(add(location, 2))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 1))
+      let _ratePerSecond := div(_oldLimit, _DURATION)
 
       let m := mload(0x40)
 
@@ -549,7 +549,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 7))
       let _oldLimit := sload(add(location, 6))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 5))
+      let _ratePerSecond := div(_oldLimit, _DURATION)
 
       let m := mload(0x40)
 
@@ -584,7 +584,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
           sstore(add(location, 7), mload(add(m, 0x20)))
         }
       }
-      sstore(add(location, 5), div(_limit, _DURATION))
+      // sstore(add(location, 5), div(_limit, _DURATION))
       sstore(location, timestamp())
       sstore(add(location, 6), _limit)
     }
@@ -678,7 +678,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 7))
       let _maxLimit := sload(add(location, 6))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 5))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
       let m := mload(0x40)
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }
@@ -741,7 +741,7 @@ contract XERC20 is ERC20, Ownable, IXERC20, ERC20Permit {
       let _currentLimit := sload(add(location, 3))
       let _maxLimit := sload(add(location, 2))
       let _timestamp := sload(location)
-      let _ratePerSecond := sload(add(location, 1))
+      let _ratePerSecond := div(_maxLimit, _DURATION)
       let m := mload(0x40)
 
       if eq(_currentLimit, _maxLimit) { _currentLimit := _maxLimit }

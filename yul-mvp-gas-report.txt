@@ -1,19 +1,19 @@
 | solidity/contracts/XERC20.sol:XERC20 contract |                 |        |        |        |         |
 |-----------------------------------------------|-----------------|--------|--------|--------|---------|
 | Deployment Cost                               | Deployment Size |        |        |        |         |
-| 1592510                                       | 9055            |        |        |        |         |
+| 1592110                                       | 9053            |        |        |        |         |
 | Function Name                                 | min             | avg    | median | max    | # calls |
 | FACTORY                                       | 294             | 294    | 294    | 294    | 1       |
 | balanceOf                                     | 562             | 562    | 562    | 562    | 4       |
-| burn                                          | 2440            | 3617   | 3310   | 4214   | 17      |
-| burningCurrentLimitOf                         | 1048            | 1125   | 1143   | 1143   | 16      |
+| burn                                          | 2440            | 3535   | 3232   | 4116   | 17      |
+| burningCurrentLimitOf                         | 950             | 1027   | 1045   | 1045   | 16      |
 | burningMaxLimitOf                             | 560             | 1060   | 560    | 2560   | 4       |
-| mint                                          | 25918           | 38133  | 39855  | 49818  | 24      |
-| mintingCurrentLimitOf                         | 1049            | 1127   | 1143   | 1143   | 18      |
+| mint                                          | 25820           | 38048  | 39776  | 49720  | 24      |
+| mintingCurrentLimitOf                         | 951             | 1029   | 1045   | 1045   | 18      |
 | mintingMaxLimitOf                             | 607             | 892    | 607    | 2607   | 7       |
 | name                                          | 3243            | 3243   | 3243   | 3243   | 1       |
 | owner                                         | 352             | 438    | 352    | 2352   | 23      |
-| setLimits                                     | 4585            | 143830 | 158082 | 160082 | 45      |
+| setLimits                                     | 4376            | 124110 | 135973 | 137973 | 45      |
 | setLockbox                                    | 23629           | 23629  | 23629  | 23629  | 22      |
 | symbol                                        | 3263            | 3263   | 3263   | 3263   | 1       |
 | totalSupply                                   | 338             | 338    | 338    | 338    | 1       |
